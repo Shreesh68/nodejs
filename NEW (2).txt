@@ -1,0 +1,261 @@
+1.How to connect master slave
+
+go to jenkins-> Manage jenkins-> Configure system ->Jenkins location shoukd have master ip adress
+ again manage jenkins -> Manage nodes and clouds-> New node-> Permanent agent
+ 
+ in the node make rhe followug changes
+ give a name kelsadaye ->change  remore root directory /home/msis/Downloads -> Launsh method is launch agent by connecting it to controller 
+ 
+From the master pc connect to slave by ssh
+sudo ssh msis@172.16.51.45
+
+Then goto your slave node and open it
+
+then download agent.jar by clickign on it
+then in the terminal execute the followubg commands
+
+sudo scp agent.jar msis@172.16.51.45:/home/msis/Downloads #Give the slaves ip
+
+#Then copy the curl commands from the node and execute
+
+#then copy the jar command with sudo and run
+
+agent.jar should get downloaded  in the slave PC and node should become active in the master.
+
+Then run the ip of the slave with port number:
+172.16.51.45:3000 #This should display the message
+
+#if firewall is enabled : sudo ufw disable #to check status
+
+
+
+2.NodeJs
+
+new item - > name -> freestyle project -> ok
+repo copy sirs repo
+
+
+build steps -> Execute shell -> #Write commands 
+
+sudo apt-get install nodejs npm -y
+sudo npm install
+sudo npm install -g pm2
+sudo pm2 start app.js
+
+#Then build and if it doesnt work do the following
+sudo su - #not necessary
+usermod -a -G sudo jenkins  #not necessary
+sudo visudo
+#Make changes in the end
+@includedir /etc/sudoers.d
+
+jenkins ALL=(ALL) NOPASSWD: ALL
+
+
+service jenkins start
+
+And then build
+#IF any error add slave node 
+
+
+3.ANSIBLE
+Do we have to write any ansible playbook first? or will it be present already?
+First connect to another PC which becomes slave
+cd AnsibleWorkUpdated/
+cd ansible-apache/
+sudo nano hosts  #change the ip to slave and save
+#enter passwords
+sudo ssh-keygen -t rsa
+#Enter filename as msis and overwrite
+sudo ssh-copy-id -i msis.pub msis@172.16.51.45
+sudo ansible-playbook apache.yml -i hosts -c ssh --ask-pass
+sudo ansible-playbook apache.yml -i hosts -c ssh -K
+
+
+4.Docker using jenkins
+#First create freestle project
+
+#use nodejs docker demo repo
+https://github.com/meghaprabhu1999/nodejsdockerdemo.git
+
+#change it to main
+
+#buildstep-> Docker build and publish
+#dockername/anyname
+
+vrushali123/dockersample
+#Tag
+latest2
+
+#Add registry credentials
+
+#Build-step-> Execute shell
+sudo docker build -t dockerimg3:latest3 .
+sudo docker run -it -d --name cont8 -p 3020:8080 dockerimg3:latest3
+sudo docker tag dockerimg3:latest3 vrushali123/dockerimg3
+sudo docker push vrushali123/dockerimg3
+
+#APPLY AND SAVe
+
+#install docker if not installed
+sudo apt-get install docker.io
+sudo docker login
+sudo apt update
+
+In the terminal execute the following commands
+sudo usermod -aG docker jenkins
+sudo usermod -aG root jenkins
+sudo chmod 664 /var/run/docker.sock
+sudo chmod 777 /var/run/docker.sock
+
+
+service jenkins start
+
+5.Docker without jenkins
+
+make a new item-> copy repo name -> change to main-> build and publish -> Add name and tag
+And save
+
+Download the zip file-> copy its content in docker in desktop and delete read me file-> Open a terminal from that folder  and execute the following commands
+
+sudo docker build -t docker:v1 .
+
+sudo docker run -itd --name cont50 -p 3035:80 docker:v1
+
+sudo docker logout and login
+
+sudo docker tag docker:v1 vrushali123/docker_new
+
+sudo docker push vrushali123/docker_new
+
+
+
+6.Kubernetes
+
+ 
+
+ssh msis@172.16.51.124  #to the ip that sir gives
+
+ 
+
+kubectl get pods
+
+ 
+
+kubectl get nodes
+
+ 
+
+cd basic-php-website/
+
+ 
+
+ls
+
+ 
+
+sudo nano hosts bookalbum_deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: munsh
+  labels:
+    app: munsh
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: munsh
+  template:
+    metadata:
+      labels:
+        app: munsh
+    spec:
+      containers:
+      - name: munsh
+        image: munsh/docimg3:latest
+        ports:
+        - containerPort: 80
+
+ 
+
+
+sudo nano hosts bookalbum_service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: munsh
+  name: munsh
+spec:
+  type: NodePort
+  ports:
+    - port: 90
+      targetPort: 90
+      protocol: TCP
+  selector:
+    app: munsh
+
+ 
+
+
+kubectl create -f bookalbum_deployment.yaml
+kubectl apply -f bookalbum_deployment.yaml 
+kubectl get pods
+
+ 
+
+kubectl describe pods/munsh-85bff5568b-mmjht
+
+ 
+
+kubectl create -f bookalbum_service.yaml
+kubectl apply -f bookalbum_service.yaml
+kubectl get svc
+
+ 
+
+ 
+
+
+7.Maven using tomcat
+ 
+
+sudo apt-get install tomcat9 tomcat9-admin
+sudo systemctl restart tomcat9
+sudo systemctl status tomcat9
+
+ 
+
+sudo nano /etc/tomcat9/tomcat-users.xml     
+add below code in it 
+<user username="jenkins" password="jenkins@123" roles="manager-script,admin-gui"/>
+
+ 
+
+ 
+
+create a freeStyleProject -- Java_Maven_JSP_Build
+add git repo -- https://github.com/sreepathysois/MyMavenApp.git
+build steps --  Invoke top-level Maven targets  --- mymaven, goals - clean compile package
+#Post-build Actions   --  Build other projects --> Java_Maven_JSP_Package 
+#appy and save
+
+ 
+
+#create a freeStyleProject -- Java_Maven_JSP_Package
+#add git repo -- https://github.com/sreepathysois/MyMavenApp.git
+#build steps --  Invoke top-level Maven targets  --- mymaven, goals - package
+#Post-build Actions   --  Build other projects --> Java_Maven_JSP_Deploy 
+#appy and save
+
+ 
+
+
+create a freeStyleProject -- Java_Maven_JSP_Deploy
+add git repo -- https://github.com/sreepathysois/MyMavenApp.git
+Post-build Actions   --   Deploy war/ear to a container --> **/*.war --> MyMavenApp
+                     --   containers --  select --Tomcat 9.x Remote 
+                     -- credentials -- give creds as given in ( sudo nano /etc/tomcat9/tomcat-users.xml)
+                     -- tomcat url -- http://172.16.51.67:8080  --> slave ip
+appy and save
